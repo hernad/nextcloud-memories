@@ -12,7 +12,7 @@ class SystemConfig
     // to generate the default config page
     public const DEFAULTS = [
         // Path to exiftool binary
-        'memories.exiftool' => '',
+        'memories.perl' => '',
 
         // perl binary
         'memories.exiftool' => '',
