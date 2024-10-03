@@ -7,6 +7,8 @@ namespace OCA\Memories;
 use OCA\Memories\AppInfo\Application;
 use OCA\Memories\Service\BinExt;
 use OCP\Files\File;
+use Psr\Log\LoggerInterface;
+use function OCP\Log\logger;
 
 class Exif
 {
@@ -23,6 +25,10 @@ class Exif
 
     /** Disable uisage of static process */
     private static bool $noStaticProc = false;
+
+    public function __construct(
+        private LoggerInterface $logger,
+    ) {}
 
     public static function closeStaticExiftoolProc(): void
     {
@@ -344,6 +350,7 @@ class Exif
             '-api', 'LargeFileSupport=1',
             '-json=-', $path,
         ]);
+        logger('memories')->warning("setExif cmd=".implode(" ", $cmd));
         $proc = proc_open($cmd, [
             0 => ['pipe', 'r'],
             1 => ['pipe', 'w'],
@@ -393,7 +400,9 @@ class Exif
     public static function getBinaryExifProp(string $path, string $prop): string
     {
         $pipes = [];
-        $proc = proc_open(array_merge(self::getExiftool(), [$prop, '-n', '-b', $path]), [
+        $cmd = array_merge(self::getExiftool(), [$prop, '-n', '-b', $path]);
+        logger('memories')->warning("getBinaryExifProp cmd=".implode(" ", $cmd));
+        $proc = proc_open($cmd, [
             1 => ['pipe', 'w'],
             2 => ['pipe', 'w'],
         ], $pipes);
@@ -432,7 +441,11 @@ class Exif
     {
         self::closeStaticExiftoolProc();
         self::$staticPipes = [];
-        self::$staticProc = proc_open(array_merge(self::getExiftool(), ['-stay_open', 'true', '-@', '-']), [
+        
+        $cmd = array_merge(self::getExiftool(), ['-stay_open', 'true', '-@', '-']); 
+        logger('memories')->warning("initializeStaticExiftoolProc cmd=".implode(" ", $cmd));
+        
+        self::$staticProc = proc_open($cmd, [
             0 => ['pipe', 'r'],
             1 => ['pipe', 'w'],
             2 => ['pipe', 'w'],
@@ -510,7 +523,17 @@ class Exif
     private static function getExifFromLocalPathWithSeparateProc(string $path, array $extraArgs = []): array
     {
         $pipes = [];
-        $proc = proc_open(array_merge(self::getExiftool(), self::EXIFTOOL_ARGS, $extraArgs, [$path]), [
+
+        // https://docs.nextcloud.com/server/latest/developer_manual/basics/logging.html
+
+        //logger('memories')->warning('getExifFromLocalPathWithSeparateProc cmd:');
+
+        $cmd = array_merge(self::getExiftool(), self::EXIFTOOL_ARGS, $extraArgs, [$path]);
+        // /nix/store/1nihi4dsprd5f1mbv5v13d9d0szh5mkr-source-patched/bin-ext/exiftool/exiftool -api QuickTimeUTC=1 -n -json /data/nextcloud/home/data/data/hernad@bring.out.ba/files/bring.out/Videos/sigma-com_kahva_1.mpg
+        
+        logger('memories')->warning("getExifFromLocalPathWithSeparateProc cmd=".implode(" ", $cmd));
+
+        $proc = proc_open($cmd, [
             1 => ['pipe', 'w'],
             2 => ['pipe', 'w'],
         ], $pipes);
@@ -521,6 +544,7 @@ class Exif
 
             return self::processStdout($stdout);
         } catch (\Exception $ex) {
+           
             error_log("Exiftool timeout: [{$path}]");
 
             throw new \Exception('Could not read from Exiftool');

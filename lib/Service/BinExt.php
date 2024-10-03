@@ -117,8 +117,9 @@ class BinExt
      */
     public static function getExiftool(): array
     {
-        $perl = SystemConfig::get('memories.perl');
+        
         if (SystemConfig::get('memories.exiftool_no_local')) {
+            $perl = SystemConfig::get('memories.perl');
             return [$perl, realpath(__DIR__.'/../../bin-ext/exiftool/exiftool')];
         }
 
